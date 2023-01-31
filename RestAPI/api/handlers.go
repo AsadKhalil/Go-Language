@@ -61,7 +61,6 @@ func createProduct(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	db = database.GetDb()
 
 	query := `
 		INSERT INTO products (name, description, price)
@@ -69,7 +68,7 @@ func createProduct(w http.ResponseWriter, r *http.Request) {
 		RETURNING id
 	`
 	var id int
-	if err := db.QueryRow(query, product.Name, product.Description, product.Price).Scan(&id); err != nil {
+	if err := database.GetDb().QueryRow(query, product.Name, product.Description, product.Price).Scan(&id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -107,15 +106,13 @@ func handleUpdateProduct(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	db = GetDb()
 	fmt.Println("DB CONNECTED")
 	query := `
 		UPDATE products
 		SET name = $2, description = $3, price = $4
 		WHERE id = $1
 	`
-	if _, err := db.Exec(query, product.ID, product.Name, product.Description, product.Price); err != nil {
+	if _, err := database.GetDb().Exec(query, product.ID, product.Name, product.Description, product.Price); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -150,9 +147,8 @@ func handleDeleteProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db = GetDb()
 	query := "DELETE FROM products WHERE id = $1"
-	if _, err := db.Exec(query, product.ID); err != nil {
+	if _, err := database.GetDb().Exec(query, product.ID); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -177,9 +173,8 @@ func handleDeleteProduct(w http.ResponseWriter, r *http.Request) {
 //  of product struct in the response body using json.NewEncoder
 
 func handleGetProducts(w http.ResponseWriter, r *http.Request) {
-	db = GetDb()
 	query := "SELECT id, name, description, price FROM products"
-	rows, err := db.Query(query)
+	rows, err := database.GetDb().Query(query)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -246,11 +241,8 @@ func handleSignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	newuser.Password = string(hashedPassword)
-
-	db = GetDb()
-
 	// Insert the new user into the database
-	_, err = db.Exec("INSERT INTO users (username, email, password) SELECT $1, $2, $3 WHERE NOT EXISTS (SELECT 1 FROM users WHERE email=$2)", newuser.Username, newuser.Email, newuser.Password)
+	_, err = database.GetDb().Exec("INSERT INTO users (username, email, password) SELECT $1, $2, $3 WHERE NOT EXISTS (SELECT 1 FROM users WHERE email=$2)", newuser.Username, newuser.Email, newuser.Password)
 	if err, ok := err.(*pq.Error); ok && err.Code == "23505" {
 		http.Error(w, "Email already exists", http.StatusBadRequest)
 		return
@@ -312,17 +304,16 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db = GetDb()
 	var storedPassword string
-	err = db.QueryRow("SELECT password FROM users WHERE username=$1", newuser.Username).Scan(&storedPassword)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			http.Error(w, "Incorrect username or password", http.StatusUnauthorized)
-		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-		return
-	}
+	database.GetDb().QueryRow("SELECT password FROM users WHERE username=$1", newuser.Username).Scan(&storedPassword)
+	// if err != nil {
+	// 	if err == sql.ErrNoRows {
+	// 		http.Error(w, "Incorrect username or password", http.StatusUnauthorized)
+	// 	} else {
+	// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	}
+	// 	return
+	// }
 
 	// Compare the hashed password with the provided password
 	if err := bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(newuser.Password)); err != nil {
@@ -400,8 +391,8 @@ func handleAddCreditCard(w http.ResponseWriter, r *http.Request) {
 	creditCard.UserID = 1
 
 	// Connect to the database and insert the credit card
-	db = GetDb()
-	_, err = db.Exec("INSERT INTO credit_cards (user_id, card_number, expiry_month, expiry_year, cvv, name_on_card) VALUES ($1, $2, $3, $4, $5, $6)", creditCard.UserID, creditCard.CardNumber, creditCard.ExpiryMonth, creditCard.ExpiryYear, creditCard.CVV, creditCard.NameOnCard)
+
+	_, err = database.GetDb().Exec("INSERT INTO credit_cards (user_id, card_number, expiry_month, expiry_year, cvv, name_on_card) VALUES ($1, $2, $3, $4, $5, $6)", creditCard.UserID, creditCard.CardNumber, creditCard.ExpiryMonth, creditCard.ExpiryYear, creditCard.CVV, creditCard.NameOnCard)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -442,11 +433,11 @@ func handleAddCreditCard(w http.ResponseWriter, r *http.Request) {
 
 // The getProduct Method is used by handle Purchase
 // it queries the database and get all products based on product id
-func getProduct(productID string) (*Product, error) {
+func getProduct(productID string) (*models.Product, error) {
 	// Connect to the database
-	db = GetDb()
+	var err error
 	// Execute the SELECT statement
-	row := db.QueryRow("SELECT * FROM products WHERE product_id = $1", productID)
+	row := database.GetDb().QueryRow("SELECT * FROM products WHERE product_id = $1", productID)
 
 	// Scan the result into a product struct
 	var product models.Product
@@ -465,9 +456,10 @@ func getProduct(productID string) (*Product, error) {
 // // it queries the database and update the products
 func updateProduct(product *models.Product) error {
 	// Connect to the database
-	db = database.GetDb()
+	var err error
+
 	// Execute the UPDATE statement
-	_, err = db.Exec("UPDATE products SET name = $1, quantity = $2, price = $3 WHERE product_id = $4", product.Name, product.Quantity, product.Price, product.ID)
+	_, err = database.GetDb().Exec("UPDATE products SET name = $1, quantity = $2, price = $3 WHERE product_id = $4", product.Name, product.Quantity, product.Price, product.ID)
 	if err != nil {
 		return err
 	}
