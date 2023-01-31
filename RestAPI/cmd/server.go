@@ -3,7 +3,6 @@ package cmd
 import (
 	"RestAPI/api"
 	"RestAPI/pkg/database"
-
 	"log"
 	"net/http"
 )
