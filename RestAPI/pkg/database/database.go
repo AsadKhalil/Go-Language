@@ -1,6 +1,7 @@
 package database
 
 import (
+	"RestAPI/pkg/config"
 	"database/sql"
 	"fmt"
 
@@ -9,10 +10,10 @@ import (
 
 var db *sql.DB
 
-func InitDb(config *Config) {
+func InitDb(config *config.Config) {
 	var err error
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
-		"password=%s dbname=%s sslmode=disable", config.DBHost, config.DBPort, config.DBUser, config.DbPassword, config.DbName)
+		"password=%s dbname=%s sslmode=disable", config.DbHost, config.DBPort, config.DbUser, config.DbPassword, config.DbName)
 
 	db, err = sql.Open("postgres", psqlInfo)
 	if err != nil {

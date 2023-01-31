@@ -1,6 +1,8 @@
 package api
 
 import (
+	"RestAPI/pkg/database"
+	"RestAPI/pkg/models"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -54,12 +56,12 @@ func createProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var product Product
+	var product models.Product
 	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	db = GetDb()
+	db = database.GetDb()
 
 	query := `
 		INSERT INTO products (name, description, price)
@@ -100,7 +102,7 @@ func createProduct(w http.ResponseWriter, r *http.Request) {
 // It is worth noting that, the ID field must be present in the request body and must match
 // an existing product ID in the database in order to update the product correctly.
 func handleUpdateProduct(w http.ResponseWriter, r *http.Request) {
-	var product Product
+	var product models.Product
 	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -142,7 +144,7 @@ func handleUpdateProduct(w http.ResponseWriter, r *http.Request) {
 // It is worth noting that, the ID field must be present in the request body and must match an existing product ID in the database in order to delete the product correctly.
 
 func handleDeleteProduct(w http.ResponseWriter, r *http.Request) {
-	var product Product
+	var product models.Product
 	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -184,9 +186,9 @@ func handleGetProducts(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	var products []Product
+	var products []models.Product
 	for rows.Next() {
-		var p Product
+		var p models.Product
 		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.Price); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -229,7 +231,7 @@ func handleGetProducts(w http.ResponseWriter, r *http.Request) {
 // string as the value, it expires after 24 hours and path is set to '/'
 
 func handleSignUp(w http.ResponseWriter, r *http.Request) {
-	var newuser User
+	var newuser models.User
 	if err := json.NewDecoder(r.Body).Decode(&newuser); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -304,7 +306,7 @@ func handleSignUp(w http.ResponseWriter, r *http.Request) {
 // It then returns the token in a JSON object with a header of "201 Created"
 
 func handleLogin(w http.ResponseWriter, r *http.Request) {
-	var newuser User
+	var newuser models.User
 	if err := json.NewDecoder(r.Body).Decode(&newuser); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -388,7 +390,7 @@ func handleAddCreditCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var creditCard CreditCard
+	var creditCard models.CreditCard
 	if err := json.NewDecoder(r.Body).Decode(&creditCard); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -447,7 +449,7 @@ func getProduct(productID string) (*Product, error) {
 	row := db.QueryRow("SELECT * FROM products WHERE product_id = $1", productID)
 
 	// Scan the result into a product struct
-	var product Product
+	var product models.Product
 	err = row.Scan(&product.ID, &product.Name, &product.Quantity, &product.Price)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -461,9 +463,9 @@ func getProduct(productID string) (*Product, error) {
 
 // The updateProduct Method is used by handle Purchase
 // // it queries the database and update the products
-func updateProduct(product *Product) error {
+func updateProduct(product *models.Product) error {
 	// Connect to the database
-	db = GetDb()
+	db = database.GetDb()
 	// Execute the UPDATE statement
 	_, err = db.Exec("UPDATE products SET name = $1, quantity = $2, price = $3 WHERE product_id = $4", product.Name, product.Quantity, product.Price, product.ID)
 	if err != nil {

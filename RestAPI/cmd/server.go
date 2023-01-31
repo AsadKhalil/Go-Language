@@ -2,16 +2,18 @@ package cmd
 
 import (
 	"RestAPI/api"
+	"RestAPI/pkg/config"
 	"RestAPI/pkg/database"
+
 	"log"
 	"net/http"
 )
 
 func Run() {
-	config := database.NewConfig()
+	config := config.NewConfig()
 	database.InitDb(config)
 
-	r := api.NewRouter()
+	r := api.Router()
 	log.Fatal(http.ListenAndServe(":8080", r))
 	defer database.GetDb().Close()
 
